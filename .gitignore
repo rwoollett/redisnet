@@ -2,6 +2,7 @@
 *.tar.gz
 build
 scratch.txt
+.env
 /.idea/
 /.vs/
 /.vscode/*.json
@@ -12,6 +13,6 @@ build.log
 set_env.sh
 output_publ*
 output_scrb*
-docker-compose.yaml
+
 
 
