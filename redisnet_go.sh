@@ -24,6 +24,8 @@ if test "$DIE" -eq 1; then
   exit 1
 fi
 
+(docker compose up -d)
+
 . ./set_env.sh
 
 sleep .4
@@ -33,6 +35,7 @@ sleep .4
 
 cd ..
 echo "Redisnet running in "\`$srcdir\'". Use redisnet_stop.sh to end the processes running."
+echo "Type \"docker compose logs -f\" to show redis container logs."
 exit 0
 
 
