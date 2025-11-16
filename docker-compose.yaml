@@ -1,8 +1,8 @@
 services:
   cache:
     container_name: cache
-    #image: redis:6.2-alpine
-    build: .
+    image: redis:6.2-alpine
+    #build: .
     restart: always
     ports:
       - "6379:6379"
