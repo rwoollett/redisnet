@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Run this (redisnet_go.sh) for sample redis pub/sub network with publisher and subscriber 
 
 DIE=0
@@ -28,8 +28,14 @@ fi
 
 . ./set_env.sh
 
-sleep .4
-(./build/clientRedis/ClientRedis > output_scrb_$$.log 2>&1 &)
+
+count=1
+while [ $count -le 5 ]; do
+  sleep .4
+  (./build/clientRedis/ClientRedis > output_scrb_$$_$count.log 2>&1 &)
+  ((count++))
+done
+
 sleep .4
 (./build/clientPublisher/ClientPublish > output_publ_$$.log 2>&1 &)
 
