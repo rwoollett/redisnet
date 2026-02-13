@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.13)
-project(NetworkRedis VERSION 1.0
+project(RedisPubSub VERSION 1.0
         DESCRIPTION "Redis on network"
         LANGUAGES C CXX)
 
@@ -46,10 +46,10 @@ set(BOOST_ROOT /usr/local)
 find_package(Boost 1.86 REQUIRED)
 
 message(STATUS "Boost include directory:  ${Boost_INCLUDE_DIR}")
-option(BUILD_WORKQ_TESTS "Build tests and include clientProducer and clientRedis" OFF)
+option(BUILD_PUBSUB_TESTS "Build tests and include clientProducer and clientSubscriber" OFF)
 
-if (BUILD_WORKQ_TESTS)
-  add_subdirectory(clientRedis)
+if (BUILD_PUBSUB_TESTS)
+  add_subdirectory(clientSubscriber)
   add_subdirectory(clientPublisher)
 endif()
 

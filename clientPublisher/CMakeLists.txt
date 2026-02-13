@@ -9,8 +9,8 @@ message(STATUS "Boost include directory:  ${CMAKE_CXX_COMPILE_FEATURES}")
 #target_compile_features(ClientPublish PUBLIC cxx_std_20) use c++20
 
 target_include_directories(ClientPublish PRIVATE
-        $<BUILD_INTERFACE:${NetworkRedis_SOURCE_DIR}/include>
-        $<BUILD_INTERFACE:${NetworkRedis_SOURCE_DIR}/ClientPublish>
+        $<BUILD_INTERFACE:${RedisPubSub_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${RedisPubSub_SOURCE_DIR}/ClientPublish>
         )
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")

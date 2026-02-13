@@ -6,9 +6,9 @@ srcdir=`dirname $0`
 test -z "$srcdir" && srcdir=.
 pwd
 
-(test -f ./build/clientRedis/ClientRedis) || {
+(test -f ./build/clientSubscriber/ClientSubscribe) || {
   echo
-  echo "**Error**: You must have a \"build/clientRedis\" folder with file \"ClientRedis\" built from CMakeLists"
+  echo "**Error**: You must have a \"build/clientSubscriber\" folder with file \"ClientSubscribe\" built from CMakeLists"
   DIE=1
 }
 (test -f ./build/clientPublisher/ClientPublish) || {
