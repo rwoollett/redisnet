@@ -1,4 +1,4 @@
-<h1 align="center">Redis Implementation with Boost 1.86.0</h1>
+<h1 align="center">Redis PubSub Implementation with Boost 1.86.0</h1>
 
 <br />
 The sample Redis PubSub application runs as standalone exe on a machine. 
@@ -55,34 +55,32 @@ This is the structure of the files in the project:
 
 ```sh
     │
-    ├── clientPublisher         # ClientPublish application
-    │   ├── io_utility          # Logging to files code
-    │   ├── nholmann            # C++ JSON
+    ├── clientPublisher        # ClientPublish application
     │   ├── CMakeLists.txt
     │   └── main.cpp          
-    ├── clientRedis             # ClientRedis application
-    │   ├── io_utility          # Logging to files code
+    ├── clientSubscriber       # Subscriber application
+    │   ├── AwakenerWaitable.h
     │   ├── CMakeLists.txt
     │   └── main.cpp
-    ├── cmake                   # cmake scripts (3.13)
-    ├── nmtoken_runner          # folder for nm_go.bat working directory
-    ├── redisPublish            # Publish subjects
-    │   ├── CMakeLists.txt
-    │   └── *.cpp/*.h           # code
-    ├── redisSubscribe          # Subcribe to subjects
-    │   ├── CMakeLists.txt
-    │   └── *.cpp/*.h           # code
-    ├── tests                   # NIY
+    ├── cmake                  # cmake scripts (3.13)
+    ├── nmtoken_runner         # folder for nm_go.bat working directory
+    ├── pubsub
+    │   ├── publish            # Publish subjects
+    │   │   ├── CMakeLists.txt
+    │   │   └── *.cpp/*.h      # code
+    │   └── subscribe          # Subcribe to subjects
+    │       ├── CMakeLists.txt
+    │       └── *.cpp/*.h      # code
     ├── .dockerignore
     ├── .gitignore
-    ├── api.http                # VS code extension POSTMAN alternative
-    ├── CMakeLists.txt          # Main CMake file
+    ├── CMakeLists.txt         # Main CMake file
     ├── docker-compose.yaml
     ├── Dockerfile
+    ├── Dockerfile.client
     ├── INSTALL.txt       
     ├── LICENCE.txt
-    ├── nm_go.sh                # Scripts
-    ├── nm_stop.sh
-    └─ README.md               # This README.md document
+    ├── README.md              # This README.md document
+    ├── redispubsub_go.sh      # Scripts
+    └── redispubsub_stop.sh
  
 ```
