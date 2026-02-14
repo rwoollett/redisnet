@@ -36,7 +36,7 @@ fi
 count=1
 while [ $count -le 5 ]; do
   sleep .4
-  (./build/clientRedis/ClientRedis > output_scrb_$$_$count.log 2>&1 &)
+  (./build/clientSubscriber/ClientSubscribe > output_scrb_$$_$count.log 2>&1 &)
   ((count++))
 done
 
