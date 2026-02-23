@@ -57,7 +57,7 @@ namespace RedisPublish
   static const int CONNECTION_RETRY_AMOUNT = -1;
   static const int CONNECTION_RETRY_DELAY = 3;
 
-  std::list<std::string> splitByComma(const char *str)
+  std::list<std::string> split_by_comma(const char *str)
   {
     std::list<std::string> result;
     if (str == nullptr)
@@ -109,8 +109,8 @@ namespace RedisPublish
   Publish::Publish() : m_ioc{2},
                        m_conn{},
                        msg_queue{},
-                       m_signalStatus{0},
-                       m_isConnected{0},
+                       m_signal_status{0},
+                       m_is_connected{0},
                        m_sender_thread{}
   {
     asio::co_spawn(m_ioc.get_executor(), Publish::co_main(), asio::detached);
@@ -125,7 +125,7 @@ namespace RedisPublish
     int countMsg = 0;
     while (!msg_queue.empty())
     {
-      if (m_isConnected == 0)
+      if (m_is_connected == 0)
       {
         // Exited because of no redis connection so empty out msg_queue
         msg_queue.pop(msg);
@@ -137,7 +137,7 @@ namespace RedisPublish
         std::this_thread::sleep_for(std::chrono::milliseconds(400));
       }
     };
-    if (m_isConnected == 0)
+    if (m_is_connected == 0)
     {
       std::cout << "Redis Publisher found not connected to redis: " << countMsg << " messages deleted\n";
     }
@@ -150,7 +150,7 @@ namespace RedisPublish
 
   void Publish::enqueue_message(const std::string &channel, const std::string &message)
   {
-    if (m_signalStatus == 1)
+    if (m_signal_status == 1)
       return;
 
     PublishMessage msg;
@@ -159,7 +159,7 @@ namespace RedisPublish
     std::strncpy(msg.message, message.c_str(), MESSAGE_LENGTH - 1);
     msg.message[MESSAGE_LENGTH - 1] = '\0'; // Always null-terminate
 
-    cstokenQueuedCount++;
+    MESSAGE_QUEUED_COUNT++;
     msg_queue.push(msg);
   }
 
@@ -172,7 +172,7 @@ namespace RedisPublish
     co_await m_conn->async_exec(ping_req, boost::redis::ignore, asio::redirect_error(asio::deferred, ec));
     if (ec)
     {
-      m_isConnected = 0;
+      m_is_connected = 0;
       D(std::cout << "PING unsuccessful\n";)
       co_return; // Connection lost, break so we can exit function and try reconnect to redis.
     }
@@ -181,8 +181,8 @@ namespace RedisPublish
       D(std::cout << "PING successful\n";)
     }
 
-    m_isConnected = 1;
-    m_reconnectCount = 0; // reset
+    m_is_connected = 1;
+    m_reconnect_count = 0; // reset
     for (boost::system::error_code ec;;)
     {
       std::vector<PublishMessage> batch;
@@ -192,7 +192,7 @@ namespace RedisPublish
         if (batch.size() < BATCH_SIZE)
         {
           batch.push_back(msg);
-          cstokenMessageCount++;
+          MESSAGE_COUNT++;
         }
         else
         {
@@ -221,7 +221,7 @@ namespace RedisPublish
           for (const auto &m : batch)
           {
             msg_queue.push(m);
-            cstokenMessageCount--;
+            MESSAGE_COUNT--;
           }
 
           break; // Connection lost, break so we can exit function and try reconnect to redis.
@@ -234,17 +234,17 @@ namespace RedisPublish
             {
               // Process number
               if (std::atoi(std::string(node.value).c_str()) > 0)
-                cstokenSuccessCount++;
+                SUCCESS_COUNT++;
             }
-            cstokenPublishedCount++;
+            PUBLISHED_COUNT++;
           }
 
           D(std::cout
                 << "Redis publish: " << " batch size: " << batch.size() << ". "
-                << cstokenQueuedCount << " queued, "
-                << cstokenMessageCount << " sent, "
-                << cstokenPublishedCount << " published. "
-                << cstokenSuccessCount << " successful subscribes made. "
+                << MESSAGE_QUEUED_COUNT << " queued, "
+                << MESSAGE_COUNT << " sent, "
+                << PUBLISHED_COUNT << " published. "
+                << SUCCESS_COUNT << " successful subscribes made. "
                 //<< ", payload [" << msg.message << "]"
                 << std::endl;)
         }
@@ -276,7 +276,7 @@ namespace RedisPublish
     sig_set.async_wait(
         [&](const boost::system::error_code &, int)
         {
-          m_signalStatus = 1;
+          m_signal_status = 1;
         });
 
     for (;;)
@@ -310,8 +310,8 @@ namespace RedisPublish
       }
 
       // Delay before reconnecting
-      m_reconnectCount++;
-      std::cout << "Publish process messages exited " << m_reconnectCount << " times, reconnecting in "
+      m_reconnect_count++;
+      std::cout << "Publish process messages exited " << m_reconnect_count << " times, reconnecting in "
                 << CONNECTION_RETRY_DELAY << " second..." << std::endl;
       co_await asio::steady_timer(ex, std::chrono::seconds(CONNECTION_RETRY_DELAY))
           .async_wait(asio::use_awaitable);
@@ -320,12 +320,12 @@ namespace RedisPublish
 
       if (CONNECTION_RETRY_AMOUNT == -1)
         continue;
-      if (m_reconnectCount >= CONNECTION_RETRY_AMOUNT)
+      if (m_reconnect_count >= CONNECTION_RETRY_AMOUNT)
       {
         break;
       }
     }
-    m_signalStatus = 1;
+    m_signal_status = 1;
   }
 
 #endif // defined(BOOST_ASIO_HAS_CO_AWAIT)

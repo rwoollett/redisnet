@@ -22,7 +22,7 @@ namespace RedisSubscribe
   static const int CONNECTION_RETRY_AMOUNT = -1;
   static const int CONNECTION_RETRY_DELAY = 3;
 
-  std::list<std::string> splitByComma(const char *str)
+  std::list<std::string> split_by_comma(const char *str)
   {
     std::list<std::string> result;
     if (str == nullptr)
@@ -73,10 +73,10 @@ namespace RedisSubscribe
 
   Subscribe::Subscribe() : m_ioc{3},
                            m_conn{},
-                           m_signalStatus{0},
-                           cstokenSubscribedCount{0},
-                           cstokenMessageCount{0},
-                           m_isConnected{0}
+                           m_signal_status{0},
+                           m_subscribed_count{0},
+                           m_mssage_count{0},
+                           m_is_connected{0}
   {
     D(std::cerr << "Subscribe created\n";)
     if (REDIS_HOST == nullptr || REDIS_PORT == nullptr || REDIS_CHANNEL == nullptr || REDIS_PASSWORD == nullptr || REDIS_USE_SSL == nullptr)
@@ -93,16 +93,11 @@ namespace RedisSubscribe
     D(std::cerr << "Subscriber destroyed\n";)
   }
 
-  void Subscribe::handleError(const std::string &msg)
-  {
-    std::cerr << "Subscribe::handleError: " << msg << std::endl;
-  };
-
   auto Subscribe::receiver(Awakener &awakener) -> asio::awaitable<void>
   {
 
     // get
-    std::list<std::string> channels = splitByComma(REDIS_CHANNEL);
+    std::list<std::string> channels = split_by_comma(REDIS_CHANNEL);
     // Print the result
     for (const auto &channel : channels)
     {
@@ -129,8 +124,8 @@ namespace RedisSubscribe
     co_await m_conn->async_exec(req, redis::ignore, asio::deferred);
 
     awakener.on_subscribe();
-    m_isConnected = 1;
-    m_reconnectCount = 0; // reset
+    m_is_connected = 1;
+    m_reconnect_count = 0; // reset
     // Loop reading Redis pushs messages.
     for (boost::system::error_code ec;;)
     {
@@ -152,7 +147,7 @@ namespace RedisSubscribe
 
       int amount = resp.value().size();
       int index = 0;
-      int refmsg = cstokenMessageCount + cstokenSubscribedCount;
+      int refmsg = m_mssage_count + m_subscribed_count;
       // The resp.value() is a vector of nodes, each node contains a value and a data_type.
       // The SUBSCRIBE response is a vector of nodes, where the first node is the command name,
       // the second node is the channel name, and the third node is the message payload.
@@ -180,7 +175,7 @@ namespace RedisSubscribe
           // Handle simple error
           // std::cout << refmsg << " " << index << " resp.value() at node: " << node.value << std::endl;
           // std::cout << refmsg << " " << index << " resp.value() at node: " << node.data_type << std::endl;
-          handleError("Subscribe::receiver error: " + std::string(node.value));
+          std::cerr << "Subscribe::receiver error: " + std::string(node.value) << std::endl;
           continue; // Skip to the next node
         }
         if (node.data_type == boost::redis::resp3::type::blob_string ||
@@ -192,12 +187,12 @@ namespace RedisSubscribe
           // std::cout << refmsg << " " << index << " resp.value() at node: " << node.data_type << std::endl;
           if (msg == "subscribe")
           {
-            cstokenSubscribedCount++;
+            m_subscribed_count++;
             // std::cout << refmsg << " " << index << " resp.value() at node: subscribe" << std::endl;
           }
           else if (msg == "message")
           {
-            cstokenMessageCount++;
+            m_mssage_count++;
             // std::cout << refmsg << " " << index << " resp.value() at node: message" << std::endl;
           }
           // else if (std::find(channels.begin(), channels.end(), msg) != channels.end())
@@ -219,8 +214,8 @@ namespace RedisSubscribe
       }
 
       D(std::cout << "\n#******************************************************\n";
-        std::cout << cstokenSubscribedCount << " subscribed, "
-                  << cstokenMessageCount << " successful messages received. " << std::endl
+        std::cout << m_subscribed_count << " subscribed, "
+                  << m_mssage_count << " successful messages received. " << std::endl
                   << messages.size() << " messages in this response received. "
                   << amount << " size of resp. " << std::endl;
         std::cout << "******************************************************\n\n";)
@@ -254,7 +249,7 @@ namespace RedisSubscribe
     sig_set.async_wait(
         [&](const boost::system::error_code &, int)
         {
-          m_signalStatus = 1;
+          m_signal_status = 1;
           awakener.stop();
         });
 
@@ -289,9 +284,9 @@ namespace RedisSubscribe
       }
 
       // Delay before reconnecting
-      m_isConnected = 0;
-      m_reconnectCount++;
-      std::cout << "Receiver exited " << m_reconnectCount << " times, reconnecting in "
+      m_is_connected = 0;
+      m_reconnect_count++;
+      std::cout << "Receiver exited " << m_reconnect_count << " times, reconnecting in "
                 << CONNECTION_RETRY_DELAY << " second..." << std::endl;
       co_await asio::steady_timer(ex, std::chrono::seconds(CONNECTION_RETRY_DELAY))
           .async_wait(asio::use_awaitable);
@@ -300,12 +295,12 @@ namespace RedisSubscribe
 
       if (CONNECTION_RETRY_AMOUNT == -1)
         continue;
-      if (m_reconnectCount >= CONNECTION_RETRY_AMOUNT)
+      if (m_reconnect_count >= CONNECTION_RETRY_AMOUNT)
       {
         break;
       }
     }
-    m_signalStatus = 1;
+    m_signal_status = 1;
     awakener.stop();
   }
 

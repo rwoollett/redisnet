@@ -40,10 +40,10 @@ namespace redis = boost::redis;
 namespace RedisPublish
 {
 
-  static std::atomic<int> cstokenQueuedCount = 0;
-  static std::atomic<int> cstokenMessageCount = 0;
-  static std::atomic<int> cstokenSuccessCount = 0;
-  static std::atomic<int> cstokenPublishedCount = 0;
+  static std::atomic<int> MESSAGE_QUEUED_COUNT = 0;
+  static std::atomic<int> MESSAGE_COUNT = 0;
+  static std::atomic<int> SUCCESS_COUNT = 0;
+  static std::atomic<int> PUBLISHED_COUNT = 0;
 
   constexpr int BATCH_SIZE = 10;
   constexpr int CHANNEL_LENGTH = 64;
@@ -61,40 +61,36 @@ namespace RedisPublish
     asio::io_context m_ioc;
     std::shared_ptr<redis::connection> m_conn;
     boost::lockfree::queue<PublishMessage, boost::lockfree::capacity<QUEUE_LENGTH>> msg_queue; // Lock-free queue
-    volatile std::sig_atomic_t m_signalStatus;
-    volatile std::sig_atomic_t m_isConnected;
+    volatile std::sig_atomic_t m_signal_status;
+    volatile std::sig_atomic_t m_is_connected;
     std::thread m_sender_thread;
-    int m_reconnectCount{0};
+    int m_reconnect_count{0};
 
   public:
-    /// Constructor
     Publish();
-
-    /// Deconstructor
     virtual ~Publish();
 
-    bool isRedisSignaled() { return (m_signalStatus == 1); };
-    bool isRedisConnected() { return (m_isConnected == 1); };
+    bool is_redis_signaled() { return (m_signal_status == 1); };
+    bool is_redis_connected() { return (m_is_connected == 1); };
 
     void enqueue_message(const std::string &channel, const std::string &message);
 
   private:
     asio::awaitable<void> co_main();
     asio::awaitable<void> process_messages();
-    // void handleError(const std::string &msg);
   };
 
   class Sender : public std::enable_shared_from_this<Sender>
   {
-    RedisPublish::Publish &m_redisPublisher;
+    RedisPublish::Publish &m_redis_publisher;
 
   public:
-    Sender(RedisPublish::Publish &publisher) : m_redisPublisher{publisher} {};
+    Sender(RedisPublish::Publish &publisher) : m_redis_publisher{publisher} {};
     ~Sender() {};
 
     void Send(const std::string &channel, const std::string &message)
     {
-      m_redisPublisher.enqueue_message(channel, message);
+      m_redis_publisher.enqueue_message(channel, message);
     };
   };
 
