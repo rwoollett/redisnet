@@ -46,7 +46,6 @@ namespace RedisSubscribe
 
   auto verify_certificate(bool, asio::ssl::verify_context &) -> bool
   {
-    std::cout << "set_verify_callback" << std::endl;
     return true;
   }
   // Helper to load a file into an SSL context
@@ -72,7 +71,7 @@ namespace RedisSubscribe
     }
   }
 
-  Subscribe::Subscribe() : m_ioc{3},
+  Subscribe::Subscribe() : m_ioc{1},
                            m_conn{}
   {
     D(std::cerr << "Subscribe created\n";)
@@ -102,10 +101,10 @@ namespace RedisSubscribe
     // get
     std::list<std::string> channels = split_by_comma(REDIS_CHANNEL);
     // Print the result
-    for (const auto &channel : channels)
+    D(for (const auto &channel : channels)
     {
       std::cout << channel << std::endl;
-    }
+    })
 
     redis::request req;
     req.push_range("SUBSCRIBE", channels);
@@ -144,7 +143,7 @@ namespace RedisSubscribe
 
       if (ec)
       {
-        std::cout << "- Subscribe::receiver ec " << ec.message() << std::endl;
+        D(std::cout << "- Subscribe::receiver ec " << ec.message() << std::endl;)
         break; // Connection lost, break so we can reconnect to channels.
       }
 
@@ -178,7 +177,7 @@ namespace RedisSubscribe
           // Handle simple error
           // std::cout << refmsg << " " << index << " resp.value() at node: " << node.value << std::endl;
           // std::cout << refmsg << " " << index << " resp.value() at node: " << node.data_type << std::endl;
-          std::cerr << "Subscribe::receiver error: " + std::string(node.value) << std::endl;
+          D(std::cerr << "Subscribe::receiver error: " + std::string(node.value) << std::endl;)
           continue; // Skip to the next node
         }
         if (node.data_type == boost::redis::resp3::type::blob_string ||
@@ -223,7 +222,7 @@ namespace RedisSubscribe
                   << amount << " size of resp. " << std::endl;
         std::cout << "******************************************************\n\n";)
 
-      awakener.broadcast_messages(messages);
+      awakener.broadcast_messages(std::move(messages));
 
       resp.value().clear(); // Clear the response value to avoid processing old messages again.
       redis::consume_one(resp);
@@ -240,7 +239,6 @@ namespace RedisSubscribe
     cfg.password = REDIS_PASSWORD;
     if (std::string(REDIS_USE_SSL) == "on")
     {
-      std::cout << "Configure ssl\n";
       cfg.use_ssl = true;
     }
 
@@ -248,7 +246,7 @@ namespace RedisSubscribe
 #if defined(SIGQUIT)
     sig_set.add(SIGQUIT);
 #endif // defined(SIGQUIT)
-    std::cout << "- Subscribe co_main wait to signal" << std::endl;
+    D(std::cout << "- Subscribe co_main wait to signal" << std::endl;)
     sig_set.async_wait(
         [&](const boost::system::error_code &, int)
         {
@@ -289,8 +287,8 @@ namespace RedisSubscribe
       // Delay before reconnecting
       m_is_connected.store(false);
       m_reconnect_count.fetch_add(1, std::memory_order_relaxed);
-      std::cout << "Receiver exited " << m_reconnect_count.load() << " times, reconnecting in "
-                << CONNECTION_RETRY_DELAY << " second..." << std::endl;
+      D(std::cout << "Receiver exited " << m_reconnect_count.load() << " times, reconnecting in "
+                << CONNECTION_RETRY_DELAY << " second..." << std::endl;)
       co_await asio::steady_timer(ex, std::chrono::seconds(CONNECTION_RETRY_DELAY))
           .async_wait(asio::use_awaitable);
 
@@ -315,7 +313,6 @@ namespace RedisSubscribe
       asio::co_spawn(m_ioc.get_executor(), Subscribe::co_main(awakener),
                      [](std::exception_ptr p)
                      {
-                       std::cout << "co_spawn(m_ioc.get_executor() throw\n";
                        if (p)
                          std::rethrow_exception(p);
                      });
@@ -325,7 +322,7 @@ namespace RedisSubscribe
     }
     catch (std::exception const &e)
     {
-      std::cerr << "subscribe (main_redis) " << e.what() << std::endl;
+      D(std::cerr << "subscribe (main_redis) " << e.what() << std::endl;)
       return 1;
     }
   }

@@ -3,9 +3,10 @@
 #define LIB_REDIS_SUBSCRIBE_H_
 
 #ifdef NDEBUG
-#define D(x)
+    #define D(x)
 #else
-#define D(x) x
+    #include "logsync.h"
+    #define D(x) do { std::lock_guard<std::mutex> lock(g_cout_mutex); x; } while(0);
 #endif
 
 #include <fstream>
@@ -44,31 +45,26 @@ namespace RedisSubscribe
   public:
     // The base class will print the messages.
     // It is able to be overridden in a derived class if you want to handle the messages differently.
-    virtual void broadcast_messages(const std::list<std::string> &broadcast_messages)
+    virtual void broadcast_messages(std::list<std::string> broadcast_messages)
     {
-      std::cout << "Awakener::broadcast_messages\n";
       if (broadcast_messages.empty())
         return; // If there are no messages, do not update.
       // The base class will print the messages.
-      std::cout << "- Broadcast subscribed messages\n";
+      D(std::cout << "- Broadcast subscribed messages\n";
       for (const auto &msg : broadcast_messages)
       {
         std::cout << msg << std::endl;
       }
       std::cout << std::endl;
-      D(std::cout << "******************************************************#\n\n";)
+      std::cout << "******************************************************#\n\n";)
     };
 
     virtual void on_subscribe()
     {
-      std::cout << "Awakener::on_subscribe\n";
-      // do nothing in base class
     };
 
     virtual void stop()
     {
-      std::cout << "Awakener::stop\n";
-      // do nothing in base class
     };
   };
 

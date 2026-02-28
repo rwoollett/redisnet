@@ -30,7 +30,7 @@
 #include <boost/redis/connection.hpp>
 #include <boost/redis/logger.hpp>
 #include <boost/asio/io_context.hpp>
-#include <boost/lockfree/queue.hpp>
+#include <boost/lockfree/spsc_queue.hpp>
 #include <thread>
 #include <iostream>
 #include <memory>
@@ -61,12 +61,7 @@ namespace RedisPublish
   {
     asio::io_context m_ioc;
     std::shared_ptr<redis::connection> m_conn;
-    // boost::lockfree::queue<PublishMessage, boost::lockfree::capacity<QUEUE_LENGTH>> msg_queue; // Lock-free queue
-    std::shared_ptr<boost::lockfree::queue<
-        PublishMessage,
-        boost::lockfree::capacity<QUEUE_LENGTH>>>
-        msg_queue;
-
+    boost::lockfree::spsc_queue<PublishMessage, boost::lockfree::capacity<QUEUE_LENGTH>> msg_queue; // Lock-free queue
     std::atomic<bool> m_is_connected;
     std::atomic<bool> m_signal_status;
     std::atomic<std::sig_atomic_t> m_reconnect_count;

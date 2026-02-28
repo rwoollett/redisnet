@@ -28,21 +28,8 @@ int main(int argc, char **argv)
   }
   
   boost::asio::io_context main_ioc;
-  boost::asio::signal_set sig_set(main_ioc.get_executor(), SIGINT, SIGTERM);
-#if defined(SIGQUIT)
-   sig_set.add(SIGQUIT);
-#endif // defined(SIGQUIT)
-
   AwakenerWaitable awakener;
   bool m_worker_shall_stop{false}; 
-
-  sig_set.async_wait(
-    [&](const boost::system::error_code &, int)
-    {
-      m_worker_shall_stop = 1;
-      awakener.stop();
-    });
-    
   auto main_ioc_thread = std::thread([&main_ioc]()
     { main_ioc.run(); });
 
@@ -50,15 +37,14 @@ int main(int argc, char **argv)
   {
     RedisSubscribe::Subscribe redisSubscribe;
     redisSubscribe.main_redis(awakener);
-    std::cout << "Application loop stated\n";
+    D(std::cout << "Application loop stated\n";)
     while (!m_worker_shall_stop)
     {
       awakener.wait_broadcast();
-      std::cout << "Application loop awakened, awake count: " << awakener.awake_load() << std::endl;
+      D(std::cout << "Application loop awakened, awake count: " << awakener.awake_load() << std::endl;)
 
       if (redisSubscribe.is_signal_stopped())
       {
-        std::cout << "Signal to Stopped" << std::endl;
         m_worker_shall_stop = true;
       }
     }

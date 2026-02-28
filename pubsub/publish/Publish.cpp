@@ -75,9 +75,7 @@ namespace RedisPublish
   Publish::Publish()
       : m_ioc{1},
         m_conn{},
-        msg_queue(std::make_shared<boost::lockfree::queue<
-                      PublishMessage,
-                      boost::lockfree::capacity<QUEUE_LENGTH>>>())
+        msg_queue{}
   {
     MESSAGE_QUEUED_COUNT.store(0);
     MESSAGE_COUNT.store(0);
@@ -99,12 +97,12 @@ namespace RedisPublish
     D(std::cerr << "Redis Publisher  destroying\n";)
     PublishMessage msg;
     int countMsg = 0;
-    while (!msg_queue->empty())
+    while (!msg_queue.empty())
     {
       if (!m_is_connected.load())
       {
         // Exited because of no redis connection so empty out msg_queue
-        msg_queue->pop(msg);
+        msg_queue.pop(msg);
         countMsg++;
       }
       else
@@ -136,7 +134,7 @@ namespace RedisPublish
     msg.message[MESSAGE_LENGTH - 1] = '\0'; // Always null-terminate
 
     MESSAGE_QUEUED_COUNT.fetch_add(1, std::memory_order_relaxed);
-    msg_queue->push(msg);
+    msg_queue.push(msg);
   }
 
   asio::awaitable<void> Publish::process_messages()
@@ -163,7 +161,7 @@ namespace RedisPublish
     {
       std::vector<PublishMessage> batch;
       PublishMessage msg;
-      while (msg_queue->pop(msg))
+      while (msg_queue.pop(msg))
       {
         if (batch.size() < BATCH_SIZE)
         {
@@ -172,7 +170,7 @@ namespace RedisPublish
         }
         else
         {
-          msg_queue->push(msg);
+          msg_queue.push(msg);
           break; // exit while
         }
       }
@@ -196,7 +194,7 @@ namespace RedisPublish
           // Perform a full reconnect to redis
           for (const auto &m : batch)
           {
-            msg_queue->push(m);
+            msg_queue.push(m);
             MESSAGE_COUNT.fetch_sub(1, std::memory_order_relaxed);
           }
 
