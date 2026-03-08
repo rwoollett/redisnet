@@ -4,6 +4,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <mtlog/mt_log.hpp>
 
 #ifdef HAVE_ASIO
 
@@ -23,6 +24,16 @@ namespace RedisSubscribe
 
   static const int CONNECTION_RETRY_AMOUNT = -1;
   static const int CONNECTION_RETRY_DELAY = 3;
+
+  void Awakener::broadcast_messages(std::list<std::string> broadcast_messages)
+  {
+    if (broadcast_messages.empty())
+      return;
+    mt_logging::logger().log({REDIS_PUBSUB_SUBSCRIBER_LOGFILE,
+                              fmt::format("- Broadcast subscribed messages {}", fmt::join(broadcast_messages, ", ")),
+                              std::ios::app,
+                              true});
+  };
 
   std::list<std::string> split_by_comma(const char *str)
   {
@@ -69,14 +80,16 @@ namespace RedisSubscribe
     }
     catch (const std::exception &e)
     {
-      std::cerr << "Subscribe::load certiciates " << e.what() << std::endl;
+      mt_logging::logger().log({REDIS_PUBSUB_SUBSCRIBER_LOGFILE,
+                                fmt::format("Subscribe::load certiciates {}", e.what()),
+                                std::ios::app,
+                                true});
     }
   }
 
   Subscribe::Subscribe() : m_ioc{1},
                            m_conn{}
   {
-    DRPSS(std::cerr << "Subscribe created\n";)
     m_is_connected.store(false);
     m_signal_status.store(false);
     m_reconnect_count.store(0);
@@ -92,6 +105,10 @@ namespace RedisSubscribe
     {
       throw std::runtime_error("Environment variables REDIS_PUBSUB_SUBSCRIBER_LOGFILE, REDIS_HOST, REDIS_PORT, REDIS_CHANNEL, REDIS_PASSWORD and REDIS_USE_SSL must be set.");
     }
+    mt_logging::logger().log({REDIS_PUBSUB_SUBSCRIBER_LOGFILE,
+                              "Subscriber created",
+                              std::ios::app,
+                              true});
   }
 
   Subscribe::~Subscribe()
@@ -99,37 +116,32 @@ namespace RedisSubscribe
     m_ioc.stop();
     if (m_receiver_thread.joinable())
       m_receiver_thread.join();
-    DRPSSI(std::cerr << "Subscriber destroyed\n";)
+    mt_logging::logger().log({REDIS_PUBSUB_SUBSCRIBER_LOGFILE,
+                              "Subscriber destroyed",
+                              std::ios::app,
+                              true});
   }
 
   auto Subscribe::receiver(Awakener &awakener) -> asio::awaitable<void>
   {
-
-    // get
     std::list<std::string> channels = split_by_comma(REDIS_CHANNEL);
-    // Print the result
-    DRPSSI(for (const auto &channel : channels) {
-      std::cout << channel << std::endl;
-    })
+    mt_logging::logger().log({REDIS_PUBSUB_SUBSCRIBER_LOGFILE,
+                              fmt::format("- Broadcast subscribed channels {}", fmt::join(channels, ", ")),
+                              std::ios::app,
+                              true});
 
     redis::request req;
     req.push_range("SUBSCRIBE", channels);
 
     redis::generic_response resp;
-    DRPSS(std::cout << "- Subscribe::receiver try connenct" << std::endl;)
-
     m_conn->set_receive_response(resp);
     co_await m_conn->async_exec(req, redis::ignore, asio::deferred);
 
     awakener.on_subscribe();
     m_is_connected.store(true);
     m_reconnect_count.store(0); // reset
-    // Loop reading Redis pushs messages.
     for (boost::system::error_code ec;;)
     {
-
-      DRPSS(std::cout << "- Subscribe::receiver generic response " << ec.message() << std::endl;)
-      // First tries to read any buffered pushes.
       m_conn->receive(ec);
       if (ec == redis::error::sync_receive_push_failed)
       {
@@ -139,35 +151,30 @@ namespace RedisSubscribe
 
       if (ec)
       {
-        DRPSSI(std::cout << "- Subscribe::receiver ec " << ec.message() << std::endl;)
-        break; // Connection lost, break so we can reconnect to channels.
+        mt_logging::logger().log({REDIS_PUBSUB_SUBSCRIBER_LOGFILE,
+                                  fmt::format("- Subscribe::receiver ec  {}", ec.message()),
+                                  std::ios::app,
+                                  true});
+        co_return; // Connection lost, break so we can reconnect to channels.
       }
 
-      int amount = resp.value().size();
       int index = 0;
-      int refmsg = m_mssage_count.load() + m_subscribed_count.load();
-      // The resp.value() is a vector of nodes, each node contains a value and a data_type.
-      // The SUBSCRIBE response is a vector of nodes, where the first node is the command name,
-      // the second node is the channel name, and the third node is the message payload.
-      // There can be multiple msg payloads for the same channel.
-      // So a size of 12 means there are 3 messages in the vector, the first message is at index 0,
-      // the second message is at index 4, and third at index 8.
-      DRPSS(std::cout << refmsg << " resp.value() information: amount: " << amount << std::endl;)
       std::list<std::string> messages;
       for (const auto &node : resp.value())
       {
-
         auto ancestorNode = (index > 1) ? resp.value().at(index - 2) : node;
         auto prevNode = (index > 0) ? resp.value().at(index - 1) : node;
         if (node.data_type == boost::redis::resp3::type::simple_error)
         {
-          DRPSSI(std::cerr << "Subscribe::receiver error: " + std::string(node.value) << std::endl;)
+          mt_logging::logger().log({REDIS_PUBSUB_SUBSCRIBER_LOGFILE,
+                                    fmt::format("- Subscribe::receiver error: {}", node.value),
+                                    std::ios::app,
+                                    true});
           continue; // Skip to the next node
         }
         if (node.data_type == boost::redis::resp3::type::blob_string ||
             node.data_type == boost::redis::resp3::type::simple_string)
         {
-          // Handle simple string
           auto msg = node.value;
           if (msg == "subscribe")
           {
@@ -190,19 +197,23 @@ namespace RedisSubscribe
         index++;
       }
 
-      DRPSS(std::cout << "\n#******************************************************\n";
-            std::cout << m_subscribed_count.load() << " subscribed, "
-                      << m_mssage_count.load() << " successful messages received. " << std::endl
-                      << messages.size() << " messages in this response received. "
-                      << amount << " size of resp. " << std::endl;
-            std::cout << "******************************************************\n\n";)
+      if (messages.size() > 0)
+      {
+        mt_logging::logger().log(
+            {REDIS_PUBSUB_SUBSCRIBER_LOGFILE,
+             fmt::format(
+                 "{} subscribed, {} successful message received. {} messages in this response. ",
+                 m_subscribed_count.load(),
+                 m_mssage_count.load(),
+                 messages.size()),
+             std::ios::app,
+             true});
 
-      awakener.broadcast_messages(std::move(messages));
-
-      resp.value().clear(); // Clear the response value to avoid processing old messages again.
+        awakener.broadcast_messages(std::move(messages));
+      }
+      resp.value().clear();
       redis::consume_one(resp);
     }
-    // }
   }
 
   auto Subscribe::co_main(Awakener &awakener) -> asio::awaitable<void>
@@ -221,7 +232,6 @@ namespace RedisSubscribe
 #if defined(SIGQUIT)
     sig_set.add(SIGQUIT);
 #endif // defined(SIGQUIT)
-    DRPSS(std::cout << "- Subscribe co_main wait to signal" << std::endl;)
     sig_set.async_wait(
         [&](const boost::system::error_code &, int)
         {
@@ -256,18 +266,26 @@ namespace RedisSubscribe
       }
       catch (const std::exception &e)
       {
-        DRPSSI(std::cerr << "Redis subscribe error: " << e.what() << std::endl;)
+        mt_logging::logger().log(
+            {REDIS_PUBSUB_SUBSCRIBER_LOGFILE,
+             fmt::format("Redis subscribe error: {}", e.what()),
+             std::ios::app,
+             true});
       }
 
       // Delay before reconnecting
       m_is_connected.store(false);
       m_reconnect_count.fetch_add(1, std::memory_order_relaxed);
-      DRPSSI(std::cout << "Receiver exited " << m_reconnect_count.load() << " times, reconnecting in "
-                       << CONNECTION_RETRY_DELAY << " second..." << std::endl;)
-      co_await asio::steady_timer(ex, std::chrono::seconds(CONNECTION_RETRY_DELAY))
-          .async_wait(asio::use_awaitable);
+
+      mt_logging::logger().log(
+          {REDIS_PUBSUB_SUBSCRIBER_LOGFILE,
+           fmt::format("Receiver exited {} times, reconnecting in {} seconds...", m_reconnect_count.load(), CONNECTION_RETRY_DELAY),
+           std::ios::app,
+           true});
 
       m_conn->cancel();
+
+      co_await asio::steady_timer(ex, std::chrono::seconds(CONNECTION_RETRY_DELAY)).async_wait(asio::use_awaitable);
 
       if (CONNECTION_RETRY_AMOUNT == -1)
         continue;
@@ -297,7 +315,11 @@ namespace RedisSubscribe
     }
     catch (std::exception const &e)
     {
-      DRPSSI(std::cerr << "subscribe (main_redis) " << e.what() << std::endl;)
+      mt_logging::logger().log(
+          {REDIS_PUBSUB_SUBSCRIBER_LOGFILE,
+           fmt::format("subscribe (main_redis) {}", e.what()),
+           std::ios::app,
+           true});
       return 1;
     }
   }

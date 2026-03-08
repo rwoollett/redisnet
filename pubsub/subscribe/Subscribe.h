@@ -3,13 +3,28 @@
 #define LIB_REDIS_SUBSCRIBE_H_
 
 #ifdef NDEBUG
-    #include "logsync.h"
-    #define DRPSS(x)
-    #define DRPSSI(x) do { std::lock_guard<std::mutex> lock(g_rpss_cout_mutex); x; } while(0);
+#include "logsync.h"
+#define DRPSS(x)
+#define DRPSSI(x)                                        \
+  do                                                     \
+  {                                                      \
+    std::lock_guard<std::mutex> lock(g_rpss_cout_mutex); \
+    x;                                                   \
+  } while (0);
 #else
-    #include "logsync.h"
-    #define DRPSS(x) do { std::lock_guard<std::mutex> lock(g_rpss_cout_mutex); x; } while(0);
-    #define DRPSSI(x) do { std::lock_guard<std::mutex> lock(g_rpss_cout_mutex); x; } while(0);
+#include "logsync.h"
+#define DRPSS(x)                                         \
+  do                                                     \
+  {                                                      \
+    std::lock_guard<std::mutex> lock(g_rpss_cout_mutex); \
+    x;                                                   \
+  } while (0);
+#define DRPSSI(x)                                        \
+  do                                                     \
+  {                                                      \
+    std::lock_guard<std::mutex> lock(g_rpss_cout_mutex); \
+    x;                                                   \
+  } while (0);
 #endif
 
 #include <fstream>
@@ -44,31 +59,10 @@ namespace RedisSubscribe
 
   class Awakener
   {
-
   public:
-    // The base class will print the messages.
-    // It is able to be overridden in a derived class if you want to handle the messages differently.
-    virtual void broadcast_messages(std::list<std::string> broadcast_messages)
-    {
-      if (broadcast_messages.empty())
-        return; // If there are no messages, do not update.
-      // The base class will print the messages.
-      DRPSS(std::cout << "- Broadcast subscribed messages\n";
-      for (const auto &msg : broadcast_messages)
-      {
-        std::cout << msg << std::endl;
-      }
-      std::cout << std::endl;
-      std::cout << "******************************************************#\n\n";)
-    };
-
-    virtual void on_subscribe()
-    {
-    };
-
-    virtual void stop()
-    {
-    };
+    virtual void broadcast_messages(std::list<std::string> broadcast_messages);
+    virtual void on_subscribe() {};
+    virtual void stop() {};
   };
 
   class Subscribe
@@ -91,7 +85,6 @@ namespace RedisSubscribe
     virtual auto main_redis(Awakener &awakener) -> int;
     virtual bool is_signal_stopped() { return m_signal_status.load(); };
     bool is_redis_connected() { return m_is_connected.load(); };
-
   };
 
 } /* namespace RedisSubscribe */
