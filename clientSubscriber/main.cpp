@@ -1,5 +1,4 @@
-﻿//#include "io_utility/io_utility.h"
-#include <csignal>
+﻿#include <csignal>
 #include <cstdlib> // For std::getenv
 #include "../pubsub/subscribe/Subscribe.h"
 #include "AwakenerWaitable.h"
@@ -10,6 +9,7 @@
 #include <boost/redis/connection.hpp>
 #include <boost/asio/signal_set.hpp>
 #include <boost/redis/src.hpp> // boost redis implementation
+#include <mtlog/mt_log.hpp>
 #include <string>
 #include <stdexcept>
 
@@ -21,44 +21,74 @@ int main(int argc, char **argv)
   const char *redis_channel = std::getenv("REDIS_CHANNEL");
   const char *redis_password = std::getenv("REDIS_PASSWORD");
   const char *redis_use_ssl = std::getenv("REDIS_USE_SSL");
+  const char *REDIS_PUBSUB_SUBSCRIBER_LOGFILE = std::getenv("REDIS_PUBSUB_SUBSCRIBER_LOGFILE");
+
   if (!(redis_host && redis_port && redis_password && redis_channel))
   {
     std::cerr << "Environment variables REDIS_HOST, REDIS_PORT, REDIS_CHANNEL, REDIS_PASSWORD or REDIS_USE_SSL are not set." << std::endl;
     exit(1);
   }
-  
+
+  mt_logging::logger().log(
+      {REDIS_PUBSUB_SUBSCRIBER_LOGFILE,
+       REDIS_PUBSUB_SUBSCRIBER_LOGFILE,
+       std::ios::out,
+       true});
+
   boost::asio::io_context main_ioc;
   AwakenerWaitable awakener;
-  bool m_worker_shall_stop{false}; 
+  bool m_worker_shall_stop{false};
   auto main_ioc_thread = std::thread([&main_ioc]()
-    { main_ioc.run(); });
+                                     { main_ioc.run(); });
 
   try
   {
     RedisSubscribe::Subscribe redisSubscribe;
     redisSubscribe.main_redis(awakener);
-    DRPSSI(std::cout << "Application loop stated\n";)
+
+    mt_logging::logger().log(
+        {REDIS_PUBSUB_SUBSCRIBER_LOGFILE,
+         "Application loop stated",
+         std::ios::out,
+         true});
+
     while (!m_worker_shall_stop)
     {
       awakener.wait_broadcast();
-      DRPSSI(std::cout << "Application loop awakened, awake count: " << awakener.awake_load() << std::endl;)
+      mt_logging::logger().log(
+          {REDIS_PUBSUB_SUBSCRIBER_LOGFILE,
+           fmt::format("Application loop awakened, awake count: {} ", awakener.awake_load()),
+           std::ios::app,
+           true});
 
       if (redisSubscribe.is_signal_stopped())
       {
         m_worker_shall_stop = true;
       }
     }
-    DRPSSI(std::cout << "Exited normally\n";)
 
+    mt_logging::logger().log(
+        {REDIS_PUBSUB_SUBSCRIBER_LOGFILE,
+         "Exited normally",
+         std::ios::app,
+         true});
   }
   catch (const std::exception &e)
   {
-    DRPSSI(std::cout << e.what() << "\n";)
+    mt_logging::logger().log(
+        {REDIS_PUBSUB_SUBSCRIBER_LOGFILE,
+         fmt::format("Application error {} ", e.what()),
+         std::ios::app,
+         true});
     result = EXIT_FAILURE;
   }
   catch (const std::string &e)
   {
-    DRPSSI(std::cout << e << "\n";)
+    mt_logging::logger().log(
+        {REDIS_PUBSUB_SUBSCRIBER_LOGFILE,
+         fmt::format("Application error {} ", e),
+         std::ios::app,
+         true});
     result = EXIT_FAILURE;
   }
 

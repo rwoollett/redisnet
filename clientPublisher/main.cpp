@@ -6,7 +6,8 @@
 #include <thread>
 #include <iostream>
 #include "../pubsub/publish/Publish.h" // RedisPublish class
-#include <boost/redis/src.hpp>       // boost redis implementation
+#include <boost/redis/src.hpp>         // boost redis implementation
+#include <mtlog/mt_log.hpp>
 
 int main(int argc, char **argv)
 {
@@ -16,6 +17,7 @@ int main(int argc, char **argv)
   const char *redis_port = std::getenv("REDIS_PORT");
   const char *redis_channel = std::getenv("REDIS_CHANNEL");
   const char *redis_password = std::getenv("REDIS_PASSWORD");
+  const char *REDIS_PUBSUB_PUBLISHER_LOGFILE = std::getenv("REDIS_PUBSUB_PUBLISHER_LOGFILE");
 
   if (!(redis_host && redis_port && redis_password && redis_channel))
   {
@@ -24,8 +26,14 @@ int main(int argc, char **argv)
   }
   if (argc > 1)
   {
-    std::cout << "Using command line arguments as channels to publish messages." << std::endl;
+    std::cerr << "Using command line arguments as channels to publish messages." << std::endl;
   }
+
+  mt_logging::logger().log(
+      {REDIS_PUBSUB_PUBLISHER_LOGFILE,
+       REDIS_PUBSUB_PUBLISHER_LOGFILE,
+       std::ios::out,
+       true});
 
   try
   {
@@ -33,7 +41,11 @@ int main(int argc, char **argv)
     RedisPublish::Publish redisPublish;
     // Before running do a sanity check on connections for Redis.
     std::this_thread::sleep_for(std::chrono::milliseconds(1500));
-    DRPSPI(std::cout << "Redis publisher connected: " << (redisPublish.is_redis_connected() ? "true" : "false") << std::endl;)
+    mt_logging::logger().log(
+        {REDIS_PUBSUB_PUBLISHER_LOGFILE,
+         fmt::format("Redis publisher connected: {}", (redisPublish.is_redis_connected() ? "true" : "false")),
+         std::ios::app,
+         true});
 
     auto doPublish = [&redisPublish](const std::string &channel,
                                      const std::string &msg = "default message")
@@ -42,7 +54,11 @@ int main(int argc, char **argv)
         redisPublish.enqueue_message(channel, msg);
     };
 
-    DRPSPI(std::cout << "Application loop stated\n";)
+    mt_logging::logger().log(
+        {REDIS_PUBSUB_PUBLISHER_LOGFILE,
+         "Application loop stated",
+         std::ios::app,
+         true});
     bool m_worker_shall_stop{false}; // false
     while (!m_worker_shall_stop)
     {
@@ -66,15 +82,32 @@ int main(int argc, char **argv)
         doPublish("csToken_acquire");
       }
 
-      std::this_thread::sleep_for(std::chrono::milliseconds(2500));
+      std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
+  }
+  catch (const std::exception &e)
+  {
+    mt_logging::logger().log(
+        {REDIS_PUBSUB_PUBLISHER_LOGFILE,
+         fmt::format("Application error {}", e.what()),
+         std::ios::app,
+         true});
+    return EXIT_FAILURE;
   }
   catch (const std::string &e)
   {
-    std::cout << e << "\n";
+    mt_logging::logger().log(
+        {REDIS_PUBSUB_PUBLISHER_LOGFILE,
+         fmt::format("Application error {}", e),
+         std::ios::app,
+         true});
     return EXIT_FAILURE;
   }
 
-  DRPSPI(std::cout << "Exited normally\n";)
+  mt_logging::logger().log(
+      {REDIS_PUBSUB_PUBLISHER_LOGFILE,
+       "Exited normally",
+       std::ios::app,
+       true});
   return EXIT_SUCCESS;
 }

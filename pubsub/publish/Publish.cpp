@@ -5,6 +5,7 @@
 #include <sstream>
 #include <string>
 #include <tuple>
+#include <mtlog/mt_log.hpp>
 
 #ifdef HAVE_ASIO
 
@@ -20,6 +21,7 @@ namespace RedisPublish
   static const char *REDIS_PORT = std::getenv("REDIS_PORT");
   static const char *REDIS_PASSWORD = std::getenv("REDIS_PASSWORD");
   static const char *REDIS_USE_SSL = std::getenv("REDIS_USE_SSL");
+  static const char *REDIS_PUBSUB_PUBLISHER_LOGFILE = std::getenv("REDIS_PUBSUB_PUBLISHER_LOGFILE");
   static const int CONNECTION_RETRY_AMOUNT = -1;
   static const int CONNECTION_RETRY_DELAY = 3;
 
@@ -68,7 +70,11 @@ namespace RedisPublish
     }
     catch (const std::exception &e)
     {
-      DRPSPI(std::cerr << "Publish::load certiciates " << e.what() << std::endl;)
+      mt_logging::logger().log(
+          {REDIS_PUBSUB_PUBLISHER_LOGFILE,
+           fmt::format("Publish::load certiciates {}", e.what()),
+           std::ios::app,
+           true});
     }
   }
 
@@ -77,6 +83,14 @@ namespace RedisPublish
         m_conn{},
         msg_queue{}
   {
+    if (REDIS_PUBSUB_PUBLISHER_LOGFILE == nullptr ||
+        REDIS_HOST == nullptr ||
+        REDIS_PORT == nullptr ||
+        REDIS_PASSWORD == nullptr ||
+        REDIS_USE_SSL == nullptr)
+    {
+      throw std::runtime_error("Environment variables REDIS_PUBSUB_PUBLISHER_LOGFILE, REDIS_HOST, REDIS_PORT, REDIS_PASSWORD and REDIS_USE_SSL must be set.");
+    }
     MESSAGE_QUEUED_COUNT.store(0);
     MESSAGE_COUNT.store(0);
     SUCCESS_COUNT.store(0);
@@ -94,32 +108,36 @@ namespace RedisPublish
 
   Publish::~Publish()
   {
-    DRPSP(std::cerr << "Redis Publisher  destroying\n";)
-    PublishMessage msg;
-    int countMsg = 0;
-    while (!msg_queue.empty())
-    {
-      if (!m_is_connected.load())
-      {
-        // Exited because of no redis connection so empty out msg_queue
-        msg_queue.pop(msg);
-        countMsg++;
-      }
-      else
-      {
-        DRPSP(std::cout << "Redis Publisher destructor found msg.\n";)
-        std::this_thread::sleep_for(std::chrono::milliseconds(400));
-      }
-    };
-    if (!m_is_connected.load())
-    {
-      DRPSP(std::cout << "Redis Publisher found not connected to redis: " << countMsg << " messages deleted\n";)
-    }
+    // PublishMessage msg;
+    // int countMsg = 0;
+    // while (!msg_queue.empty())
+    // {
+    //   if (!m_is_connected.load())
+    //   {
+    //     // Exited because of no redis connection so empty out msg_queue
+    //     msg_queue.pop(msg);
+    //     countMsg++;
+    //   }
+    //   else
+    //   {
+    //     DRPSP(std::cout << "Redis Publisher destructor found msg.\n";)
+    //     std::this_thread::sleep_for(std::chrono::milliseconds(400));
+    //   }
+    // };
+    // if (!m_is_connected.load())
+    // {
+    //   DRPSP(std::cout << "Redis Publisher found not connected to redis: " << countMsg << " messages deleted\n";)
+    // }
 
     m_ioc.stop();
     if (m_sender_thread.joinable())
       m_sender_thread.join();
-    DRPSPI(std::cerr << "Redis Publisher destroyed\n";)
+
+    mt_logging::logger().log(
+        {REDIS_PUBSUB_PUBLISHER_LOGFILE,
+         "Redis Publisher destroyed",
+         std::ios::app,
+         true});
   }
 
   void Publish::enqueue_message(const std::string &channel, const std::string &message)
@@ -147,12 +165,20 @@ namespace RedisPublish
     if (ec)
     {
       m_is_connected.store(false);
-      DRPSPI(std::cout << "PING unsuccessful\n";)
+      mt_logging::logger().log(
+          {REDIS_PUBSUB_PUBLISHER_LOGFILE,
+           "PING unsuccessful",
+           std::ios::app,
+           true});
       co_return; // Connection lost, break so we can exit function and try reconnect to redis.
     }
     else
     {
-      DRPSPI(std::cout << "PING successful\n";)
+      mt_logging::logger().log(
+          {REDIS_PUBSUB_PUBLISHER_LOGFILE,
+           "PING successful",
+           std::ios::app,
+           true});
     }
 
     m_is_connected.store(true);
@@ -188,9 +214,11 @@ namespace RedisPublish
 
         if (ec)
         {
-          DRPSP(std::cout << "Perform a full reconnect to redis. Batch size: " << batch.size()
-                    << ". Reason for error: " << ec.message()
-                    << std::endl;)
+          mt_logging::logger().log(
+              {REDIS_PUBSUB_PUBLISHER_LOGFILE,
+               fmt::format("Perform a full reconnect to redis. Batch size: {}. Reason for error: {}", batch.size(), ec.message()),
+               std::ios::app,
+               true});
           for (const auto &m : batch)
           {
             msg_queue.push(m);
@@ -212,13 +240,12 @@ namespace RedisPublish
             PUBLISHED_COUNT.fetch_add(1, std::memory_order_relaxed);
           }
 
-          DRPSP(std::cout
-                << "Redis publish: " << " batch size: " << batch.size() << ". "
-                << MESSAGE_QUEUED_COUNT.load() << " queued, "
-                << MESSAGE_COUNT.load() << " sent, "
-                << PUBLISHED_COUNT.load() << " published. "
-                << SUCCESS_COUNT.load() << " successful subscribes made. "
-                << std::endl;)
+          mt_logging::logger().log(
+              {REDIS_PUBSUB_PUBLISHER_LOGFILE,
+               fmt::format("Redis publish: batch size {}. {} queued, {} sent, {} published. {} successful subscribes made.",
+                           batch.size(), MESSAGE_QUEUED_COUNT.load(), MESSAGE_COUNT.load(), PUBLISHED_COUNT.load(), SUCCESS_COUNT.load()),
+               std::ios::app,
+               true});
         }
       }
       else
@@ -277,13 +304,20 @@ namespace RedisPublish
       }
       catch (const std::exception &e)
       {
-        DRPSPI(std::cerr << "Redis publish error: " << e.what() << std::endl;)
+        mt_logging::logger().log(
+            {REDIS_PUBSUB_PUBLISHER_LOGFILE,
+             fmt::format("Redis publish error: {}", e.what()),
+             std::ios::app,
+             true});
       }
 
       // Delay before reconnecting
       m_reconnect_count.fetch_add(1, std::memory_order_relaxed);
-      DRPSPI(std::cout << "Publish process messages exited " << m_reconnect_count << " times, reconnecting in "
-                << CONNECTION_RETRY_DELAY << " second..." << std::endl;)
+      mt_logging::logger().log(
+          {REDIS_PUBSUB_PUBLISHER_LOGFILE,
+           fmt::format("Publish process messages exited {} times, reconnecting in {} seconds...", m_reconnect_count.load(), CONNECTION_RETRY_DELAY),
+           std::ios::app,
+           true});
       co_await asio::steady_timer(ex, std::chrono::seconds(CONNECTION_RETRY_DELAY)).async_wait(asio::use_awaitable);
 
       m_conn->cancel();

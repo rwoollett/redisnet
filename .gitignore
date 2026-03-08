@@ -13,7 +13,7 @@ seq_*.txt
 scratch.txt
 build.log
 set_env.sh
-output_publ*
+output_pub*
 output_scrb*
 tls
 

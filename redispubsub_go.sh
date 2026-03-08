@@ -36,6 +36,7 @@ fi
 count=1
 while [ $count -le 5 ]; do
   sleep .4
+  export REDIS_PUBSUB_SUBSCRIBER_LOGFILE=output_pubsub_subscriber_$count.log
   (./build/clientSubscriber/ClientSubscribe > output_scrb_$$_$count.log 2>&1 &)
   ((count++))
 done

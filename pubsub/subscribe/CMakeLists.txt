@@ -15,8 +15,11 @@ target_include_directories(RedisSubscribe
         $<BUILD_INTERFACE:${Boost_INCLUDE_DIR}>
 )
 
-set(THREADS_PREFER_PTHREAD_FLAG ON)
-find_package(Threads REQUIRED)
-target_link_libraries(RedisSubscribe PRIVATE Threads::Threads ${CMAKE_DL_LIBS})
+#set(THREADS_PREFER_PTHREAD_FLAG ON)
+#find_package(Threads REQUIRED)
+target_link_libraries(RedisSubscribe 
+  PUBLIC
+    MTLog
+)
 
 

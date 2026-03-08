@@ -3,17 +3,10 @@ project(RedisPubSub VERSION 1.0
         DESCRIPTION "Redis on network"
         LANGUAGES C CXX)
 
-# Set module path for Tester Catch2 cmake modules
-#set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
-
-# set everything up for c++ 20 features - require coroutines and BOOST_ASIO_HAS_CO_AWAIT
 set(CMAKE_CXX_STANDARD 20) 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-#add_compile_definitions(USE_EXP_FILESYSTEM)
-
-# FetchContent added in CMake 3.11, downloads during the configure step
-#include(FetchContent)
+include(FetchContent)
 
 add_compile_definitions(HAVE_ASIO)
 
@@ -25,6 +18,13 @@ set(Boost_USE_STATIC_RUNTIME ON)
 set(Boost_NO_BOOST_CMAKE ON)
 set(BOOST_ROOT /usr/local)
 find_package(Boost 1.86 REQUIRED)
+
+FetchContent_Declare(
+    MTLog
+    GIT_REPOSITORY https://github.com/rwoollett/mtlog.git
+    GIT_TAG master
+)
+FetchContent_MakeAvailable(MTLog)
 
 option(BUILD_PUBSUB_TESTS "Build tests and include clientProducer and clientSubscriber" OFF)
 

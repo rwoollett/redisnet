@@ -19,6 +19,8 @@ namespace RedisSubscribe
   static const char *REDIS_CHANNEL = std::getenv("REDIS_CHANNEL");
   static const char *REDIS_PASSWORD = std::getenv("REDIS_PASSWORD");
   static const char *REDIS_USE_SSL = std::getenv("REDIS_USE_SSL");
+  static const char *REDIS_PUBSUB_SUBSCRIBER_LOGFILE = std::getenv("REDIS_PUBSUB_SUBSCRIBER_LOGFILE");
+
   static const int CONNECTION_RETRY_AMOUNT = -1;
   static const int CONNECTION_RETRY_DELAY = 3;
 
@@ -81,9 +83,14 @@ namespace RedisSubscribe
     m_subscribed_count.store(0);
     m_mssage_count.store(0);
 
-    if (REDIS_HOST == nullptr || REDIS_PORT == nullptr || REDIS_CHANNEL == nullptr || REDIS_PASSWORD == nullptr || REDIS_USE_SSL == nullptr)
+    if (REDIS_PUBSUB_SUBSCRIBER_LOGFILE == nullptr ||
+        REDIS_HOST == nullptr ||
+        REDIS_PORT == nullptr ||
+        REDIS_CHANNEL == nullptr ||
+        REDIS_PASSWORD == nullptr ||
+        REDIS_USE_SSL == nullptr)
     {
-      throw std::runtime_error("Environment variables REDIS_HOST, REDIS_PORT, REDIS_CHANNEL, REDIS_PASSWORD and REDIS_USE_SSL must be set.");
+      throw std::runtime_error("Environment variables REDIS_PUBSUB_SUBSCRIBER_LOGFILE, REDIS_HOST, REDIS_PORT, REDIS_CHANNEL, REDIS_PASSWORD and REDIS_USE_SSL must be set.");
     }
   }
 

@@ -15,8 +15,9 @@ target_include_directories(RedisPublish
         $<BUILD_INTERFACE:${Boost_INCLUDE_DIR}>
 )
 
-set(THREADS_PREFER_PTHREAD_FLAG ON)
-find_package(Threads REQUIRED)
-target_link_libraries(RedisPublish PRIVATE Threads::Threads ${CMAKE_DL_LIBS})
+target_link_libraries(RedisPublish 
+  PUBLIC 
+    MTLog
+)
 
 
