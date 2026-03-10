@@ -43,8 +43,8 @@ int main(int argc, char **argv)
 
   try
   {
-    RedisSubscribe::Subscribe redisSubscribe;
-    redisSubscribe.main_redis(awakener);
+    RedisSubscribe::Subscribe redisSubscribe(awakener);
+    redisSubscribe.main_redis();
 
     mt_logging::logger().log(
         {REDIS_PUBSUB_SUBSCRIBER_LOGFILE,

@@ -87,8 +87,9 @@ namespace RedisSubscribe
     }
   }
 
-  Subscribe::Subscribe() : m_ioc{1},
-                           m_conn{}
+  Subscribe::Subscribe(Awakener &awakener) : m_ioc{1},
+                                             m_awakener(awakener),
+                                             m_conn{}
   {
     m_is_connected.store(false);
     m_signal_status.store(false);
@@ -113,46 +114,40 @@ namespace RedisSubscribe
 
   Subscribe::~Subscribe()
   {
-    m_ioc.stop();
-    if (m_receiver_thread.joinable())
-      m_receiver_thread.join();
+    request_stop();
+    join();
     mt_logging::logger().log({REDIS_PUBSUB_SUBSCRIBER_LOGFILE,
                               "Subscriber destroyed",
                               std::ios::app,
                               true});
   }
-  // Subscribe::~Subscribe()
-  // {
-  //   request_stop();
-  //   join();
-  // }
 
-  // void Subscribe::request_stop()
-  // {
-  //   m_signal_status.store(true);
+  void Subscribe::request_stop()
+  {
+    m_signal_status.store(true);
 
-  //   // Wake Redis operations
-  //   if (m_conn)
-  //   {
-  //     boost::asio::post(m_ioc, [conn = m_conn]
-  //                       { conn->cancel(); });
-  //   }
+    // Wake Redis operations
+    if (m_conn)
+    {
+      boost::asio::post(m_ioc, [conn = m_conn]
+                        { conn->cancel(); });
+    }
 
-  //   // Wake the awakener
-  //   m_awakener.stop();
+    // Wake the awakener
+    m_awakener.stop();
 
-  //   // Stop the io_context on its own thread
-  //   boost::asio::post(m_ioc, [this]
-  //                     { m_ioc.stop(); });
-  // }
+    // Stop the io_context on its own thread
+    boost::asio::post(m_ioc, [this]
+                      { m_ioc.stop(); });
+  }
 
-  // void Subscribe::join()
-  // {
-  //   if (m_receiver_thread.joinable())
-  //     m_receiver_thread.join();
-  // }
+  void Subscribe::join()
+  {
+    if (m_receiver_thread.joinable())
+      m_receiver_thread.join();
+  }
 
-  auto Subscribe::receiver(Awakener &awakener) -> asio::awaitable<void>
+  auto Subscribe::receiver() -> asio::awaitable<void>
   {
     std::list<std::string> channels = split_by_comma(REDIS_CHANNEL);
     mt_logging::logger().log({REDIS_PUBSUB_SUBSCRIBER_LOGFILE,
@@ -167,11 +162,15 @@ namespace RedisSubscribe
     m_conn->set_receive_response(resp);
     co_await m_conn->async_exec(req, redis::ignore, asio::deferred);
 
-    awakener.on_subscribe();
+    // awakener.on_subscribe();
     m_is_connected.store(true);
     m_reconnect_count.store(0); // reset
     for (boost::system::error_code ec;;)
     {
+      if (m_signal_status.load())
+      {
+        co_return;
+      }
       m_conn->receive(ec);
       if (ec == redis::error::sync_receive_push_failed)
       {
@@ -239,14 +238,14 @@ namespace RedisSubscribe
              std::ios::app,
              true});
 
-        awakener.broadcast_messages(std::move(messages));
+        m_awakener.broadcast_messages(std::move(messages));
       }
       resp.value().clear();
       redis::consume_one(resp);
     }
   }
 
-  auto Subscribe::co_main(Awakener &awakener) -> asio::awaitable<void>
+  auto Subscribe::co_main() -> asio::awaitable<void>
   {
     auto ex = co_await asio::this_coro::executor;
     redis::config cfg;
@@ -266,11 +265,20 @@ namespace RedisSubscribe
         [&](const boost::system::error_code &, int)
         {
           m_signal_status.store(true);
-          awakener.stop();
+          m_awakener.stop();
+
+          if (m_conn)
+          {
+            m_conn->cancel();
+          }
         });
 
     for (;;)
     {
+      if (m_signal_status.load())
+      {
+        co_return;
+      }
       if (std::string(REDIS_USE_SSL) == "on")
       {
         asio::ssl::context ssl_ctx{asio::ssl::context::tlsv12_client};
@@ -292,7 +300,7 @@ namespace RedisSubscribe
 
       try
       {
-        co_await receiver(awakener);
+        co_await receiver();
       }
       catch (const std::exception &e)
       {
@@ -325,15 +333,15 @@ namespace RedisSubscribe
       }
     }
     m_signal_status.store(true);
-    awakener.stop();
+    m_awakener.stop();
   }
 
-  auto Subscribe::main_redis(Awakener &awakener) -> int
+  auto Subscribe::main_redis() -> int
   {
     try
     {
       // net::io_context ioc;
-      asio::co_spawn(m_ioc.get_executor(), Subscribe::co_main(awakener),
+      asio::co_spawn(m_ioc.get_executor(), Subscribe::co_main(),
                      [](std::exception_ptr p)
                      {
                        if (p)
