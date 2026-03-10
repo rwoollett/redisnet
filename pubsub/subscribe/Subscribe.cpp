@@ -121,6 +121,36 @@ namespace RedisSubscribe
                               std::ios::app,
                               true});
   }
+  // Subscribe::~Subscribe()
+  // {
+  //   request_stop();
+  //   join();
+  // }
+
+  // void Subscribe::request_stop()
+  // {
+  //   m_signal_status.store(true);
+
+  //   // Wake Redis operations
+  //   if (m_conn)
+  //   {
+  //     boost::asio::post(m_ioc, [conn = m_conn]
+  //                       { conn->cancel(); });
+  //   }
+
+  //   // Wake the awakener
+  //   m_awakener.stop();
+
+  //   // Stop the io_context on its own thread
+  //   boost::asio::post(m_ioc, [this]
+  //                     { m_ioc.stop(); });
+  // }
+
+  // void Subscribe::join()
+  // {
+  //   if (m_receiver_thread.joinable())
+  //     m_receiver_thread.join();
+  // }
 
   auto Subscribe::receiver(Awakener &awakener) -> asio::awaitable<void>
   {

@@ -83,6 +83,9 @@ namespace RedisSubscribe
     asio::awaitable<void> receiver(Awakener &awakener);
     asio::awaitable<void> co_main(Awakener &awakener);
     virtual auto main_redis(Awakener &awakener) -> int;
+
+    // void request_stop();
+    // void join();
     virtual bool is_signal_stopped() { return m_signal_status.load(); };
     bool is_redis_connected() { return m_is_connected.load(); };
   };
