@@ -119,6 +119,8 @@ namespace RedisPublish
                       { msg_queue.shutdown(); });
 
     msg_queue.push(PublishMessage{}); // dummy wake-up on lockfree queue
+    boost::asio::post(m_ioc, [this]
+                      { m_ioc.stop(); });
 
     if (m_sender_thread.joinable())
       m_sender_thread.join();
@@ -178,21 +180,6 @@ namespace RedisPublish
       if (m_shutting_down.load())
         break;
 
-      // std::vector<PublishMessage> batch;
-      // PublishMessage msg;
-      // while (msg_queue.pop(msg))
-      // {
-      //   if (batch.size() < BATCH_SIZE)
-      //   {
-      //     batch.push_back(msg);
-      //     MESSAGE_COUNT.fetch_add(1, std::memory_order_relaxed);
-      //   }
-      //   else
-      //   {
-      //     msg_queue.push(msg);
-      //     break; // exit while
-      //   }
-      // }
       std::vector<PublishMessage> batch;
       PublishMessage msg;
       while (batch.size() < BATCH_SIZE && msg_queue.blocking_pop(msg))
@@ -288,6 +275,10 @@ namespace RedisPublish
         [&](const boost::system::error_code &, int)
         {
           m_signal_status.store(true);
+          m_shutting_down.store(true);
+          if (m_conn)
+            m_conn->cancel();
+          msg_queue.shutdown();
         });
 
     for (;;)
