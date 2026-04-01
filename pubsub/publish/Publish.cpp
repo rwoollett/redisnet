@@ -199,6 +199,12 @@ namespace RedisPublish
       redis::request req;
       for (const auto &m : batch)
       {
+        mt_logging::logger().log(
+            {REDIS_PUBSUB_PUBLISHER_LOGFILE,
+             fmt::format("Redis publish: {} {} ",
+                         m.channel, m.message),
+             std::ios::app,
+             true});
         req.push("PUBLISH", m.channel, m.message);
       }
       redis::generic_response resp;
