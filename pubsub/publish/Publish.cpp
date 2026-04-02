@@ -208,7 +208,7 @@ namespace RedisPublish
         req.push("PUBLISH", m.channel, m.message);
       }
       redis::generic_response resp;
-      req.get_config().cancel_if_not_connected = true;
+      //req.get_config().cancel_if_not_connected = true;
       co_await m_conn->async_exec(req, resp, asio::redirect_error(asio::use_awaitable, ec));
 
       if (ec)

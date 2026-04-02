@@ -2,6 +2,8 @@
 #define REDISCLIENT_AWAKENER_WAITABLE_H_
 
 #include "../pubsub/subscribe/Subscribe.h"
+#include <mtlog/mt_log.hpp>
+
 
 class AwakenerWaitable : public RedisSubscribe::Awakener
 {
@@ -26,7 +28,7 @@ public:
   {
     std::unique_lock<std::mutex> cl(m_class_lock);
     if (broadcast_messages.empty())
-      return; 
+      return;
     // // The base class will print the messages.
     // DRPSSI(std::cout << "- Broadcast subscribed messages\n";
     //   for (const auto &msg : broadcast_messages) {
@@ -34,6 +36,16 @@ public:
     //   } std::cout
     //   << std::endl;
     //   std::cout << "******************************************************#\n\n";)
+
+    for (const auto &msg : broadcast_messages)
+    {
+      mt_logging::logger().log(
+          {std::getenv("REDIS_PUBSUB_SUBSCRIBER_LOGFILE"),
+           fmt::format("Message: {} ", msg),
+           std::ios::app,
+           true});
+    }
+
     awake++;
     m_cond_not_awake.notify_one();
   };
