@@ -365,6 +365,7 @@ namespace RedisPublish
   {
     auto ex = co_await asio::this_coro::executor;
     redis::config cfg;
+    cfg.clientname = "redis_publish";
     cfg.addr.host = REDIS_HOST;
     cfg.addr.port = REDIS_PORT;
     cfg.password = REDIS_PASSWORD;
@@ -372,6 +373,8 @@ namespace RedisPublish
     {
       cfg.use_ssl = true;
     }
+    cfg.health_check_interval = std::chrono::minutes(1); // set 0 for tls friendly
+
 
     boost::asio::signal_set sig_set(ex, SIGINT, SIGTERM);
 #if defined(SIGQUIT)

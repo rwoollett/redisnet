@@ -78,11 +78,11 @@ int main(int argc, char **argv)
       }
       else
       {
-        doPublish("csToken_request");
-        doPublish("csToken_acquire");
+        doPublish("ttt_game_Create");
+        doPublish("ttt_player_Move");
       }
 
-      std::this_thread::sleep_for(std::chrono::milliseconds(200));
+      std::this_thread::sleep_for(std::chrono::milliseconds(5000));
     }
   }
   catch (const std::exception &e)
