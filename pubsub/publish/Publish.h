@@ -154,7 +154,7 @@ namespace RedisPublish
     virtual ~Publish();
 
     bool is_redis_signaled() { return m_signal_status.load(); };
-    bool is_redis_connected() { return m_conn_alive.load(); };
+   // bool is_redis_connected() { return m_conn_alive.load(); };
     void enqueue_message(const std::string &channel, const std::string &message);
 
   private:

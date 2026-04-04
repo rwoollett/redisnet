@@ -216,7 +216,7 @@ namespace RedisPublish
     // Exec completed first: check error
     if (exec_ec)
     {
-      conn->cancel();          // optional, but consistent
+      conn->cancel();            // optional, but consistent
       m_conn_alive.store(false); // <-- key line
 
       // if (!m_shutting_down.load())
@@ -331,28 +331,28 @@ namespace RedisPublish
     m_worker = std::thread([this, ex]
                            { this->worker_thread_fn(ex); });
 
+    // --- Create connection ---
+    std::cerr << "create connection\n";
+    if (std::string(REDIS_USE_SSL) == "on")
+    {
+      asio::ssl::context ssl_ctx{asio::ssl::context::tlsv12_client};
+      ssl_ctx.set_verify_mode(asio::ssl::verify_peer);
+      load_certificates(ssl_ctx, "tls/ca.crt", "tls/redis.crt", "tls/redis.key");
+      ssl_ctx.set_verify_callback(verify_certificate);
+
+      m_conn = std::make_shared<redis::connection>(ex, std::move(ssl_ctx));
+    }
+    else
+    {
+      m_conn = std::make_shared<redis::connection>(ex);
+    }
+
     // --- Main reconnect loop ---
     for (;;)
     {
       std::cerr << "start main loop\n";
       if (m_shutting_down.load())
         co_return;
-
-      // --- Create connection ---
-      std::cerr << "create connection\n";
-      if (std::string(REDIS_USE_SSL) == "on")
-      {
-        asio::ssl::context ssl_ctx{asio::ssl::context::tlsv12_client};
-        ssl_ctx.set_verify_mode(asio::ssl::verify_peer);
-        load_certificates(ssl_ctx, "tls/ca.crt", "tls/redis.crt", "tls/redis.key");
-        ssl_ctx.set_verify_callback(verify_certificate);
-
-        m_conn = std::make_shared<redis::connection>(ex, std::move(ssl_ctx));
-      }
-      else
-      {
-        m_conn = std::make_shared<redis::connection>(ex);
-      }
 
       // Mark connection as "attempting"
       std::cerr << "attempt connecting asyn run\n";
@@ -392,6 +392,9 @@ namespace RedisPublish
 
           // small delay before retry
           std::cerr << "reconnect waiting\n";
+          m_conn->cancel();
+          // m_conn->reset_stream();
+          std::cerr << " reconnect and cancel current m_conn\n";
           co_await asio::steady_timer(ex, std::chrono::seconds(CONNECTION_RETRY_DELAY))
               .async_wait(asio::use_awaitable);
 

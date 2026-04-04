@@ -57,16 +57,16 @@ int main(int argc, char **argv)
     RedisPublish::Publish redisPublish;
     // Before running do a sanity check on connections for Redis.
     std::this_thread::sleep_for(std::chrono::milliseconds(1500));
-    mt_logging::logger().log(
-        {REDIS_PUBSUB_PUBLISHER_LOGFILE,
-         fmt::format("Redis publisher connected: {}", (redisPublish.is_redis_connected() ? "true" : "false")),
-         std::ios::app,
-         true});
+    // mt_logging::logger().log(
+    //     {REDIS_PUBSUB_PUBLISHER_LOGFILE,
+    //      fmt::format("Redis publisher connected: {}", (redisPublish.is_redis_connected() ? "true" : "false")),
+    //      std::ios::app,
+    //      true});
 
     auto doPublish = [&redisPublish](const std::string &channel,
                                      const std::string &msg = "default message")
     {
-      if (redisPublish.is_redis_connected())
+      if (!redisPublish.is_redis_signaled())
       {
         redisPublish.enqueue_message(channel, msg);
       }
