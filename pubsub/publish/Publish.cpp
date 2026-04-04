@@ -393,7 +393,7 @@ namespace RedisPublish
           // small delay before retry
           std::cerr << "reconnect waiting\n";
           m_conn->cancel();
-          // m_conn->reset_stream();
+          m_conn->reset_stream();
           std::cerr << " reconnect and cancel current m_conn\n";
           co_await asio::steady_timer(ex, std::chrono::seconds(CONNECTION_RETRY_DELAY))
               .async_wait(asio::use_awaitable);
