@@ -75,6 +75,7 @@ namespace RedisPublish
     {
       mt_logging::logger().log(
           {fmt::format("Publish::load certiciates {}", e.what()),
+           mt_logging::LogLevel::Error,
            true});
     }
   }
@@ -140,6 +141,7 @@ namespace RedisPublish
       m_sender_thread.join();
 
     mt_logging::logger().log({"Redis Publisher destroyed",
+                              mt_logging::LogLevel::Debug,
                               true});
   }
 
@@ -278,8 +280,9 @@ namespace RedisPublish
       while (msg_queue.pop(leftover))
         dropped++;
 
-      mt_logging::logger().log({fmt::format("Redis publish shutdown: dropped {} pending messages", dropped),
-                                true});
+      mt_logging::logger().log({.line = fmt::format("Redis publish shutdown: dropped {} pending messages", dropped),
+                                .level = mt_logging::LogLevel::Info,
+                                .include_thread_id = true});
     }
   }
 
@@ -444,6 +447,7 @@ namespace RedisPublish
 
     mt_logging::logger().log({fmt::format("State: {} → {} ({})",
                                           to_str(old), to_str(new_state), reason),
+                              mt_logging::LogLevel::Info,
                               true});
   }
 

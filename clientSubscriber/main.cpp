@@ -29,7 +29,7 @@ int main(int argc, char **argv)
     exit(1);
   }
 
-  mt_logging::logger().log({MTLOG_LOGFILE, true});
+  mt_logging::logger().log({MTLOG_LOGFILE, mt_logging::LogLevel::Error, true});
 
   boost::asio::io_context main_ioc;
   AwakenerWaitable awakener;
@@ -42,10 +42,6 @@ int main(int argc, char **argv)
     RedisSubscribe::Subscribe redisSubscribe(awakener);
     redisSubscribe.main_redis();
 
-    mt_logging::logger().log(
-        {"Application loop stated",
-         true});
-
     while (!m_worker_shall_stop)
     {
       awakener.wait_broadcast();
@@ -54,23 +50,19 @@ int main(int argc, char **argv)
         m_worker_shall_stop = true;
       }
     }
-
-    mt_logging::logger().log(
-        {"Exited normally",
-         true});
   }
   catch (const std::exception &e)
   {
     mt_logging::logger().log(
         {fmt::format("Application error {} ", e.what()),
-         true});
+         mt_logging::LogLevel::Error, true});
     result = EXIT_FAILURE;
   }
   catch (const std::string &e)
   {
     mt_logging::logger().log(
         {fmt::format("Application error {} ", e),
-         true});
+         mt_logging::LogLevel::Error, true});
     result = EXIT_FAILURE;
   }
 

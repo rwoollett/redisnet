@@ -30,6 +30,7 @@ namespace RedisSubscribe
     if (broadcast_messages.empty())
       return;
     mt_logging::logger().log({fmt::format("- Broadcast subscribed messages {}", fmt::join(broadcast_messages, ", ")),
+                              mt_logging::LogLevel::Info,
                               true});
   };
 
@@ -79,6 +80,7 @@ namespace RedisSubscribe
     catch (const std::exception &e)
     {
       mt_logging::logger().log({fmt::format("Subscribe::load certiciates {}", e.what()),
+                                mt_logging::LogLevel::Error,
                                 true});
     }
   }
@@ -103,16 +105,12 @@ namespace RedisSubscribe
     {
       throw std::runtime_error("Environment variables MTLOG_LOGFILE, REDIS_HOST, REDIS_PORT, REDIS_CHANNEL, REDIS_PASSWORD and REDIS_USE_SSL must be set.");
     }
-    mt_logging::logger().log({"Subscriber created",
-                              true});
   }
 
   Subscribe::~Subscribe()
   {
     request_stop();
     join();
-    mt_logging::logger().log({"Subscriber destroyed",
-                              true});
   }
 
   void Subscribe::request_stop()
@@ -186,6 +184,7 @@ namespace RedisSubscribe
         if (node.data_type == boost::redis::resp3::type::simple_error)
         {
           mt_logging::logger().log({fmt::format("- Subscribe::receiver error: {}", node.value),
+                                    mt_logging::LogLevel::Error,
                                     true});
           continue; // Skip to the next node
         }
@@ -292,6 +291,7 @@ namespace RedisSubscribe
       {
         mt_logging::logger().log(
             {fmt::format("Redis subscribe error: {}", e.what()),
+             mt_logging::LogLevel::Error,
              true});
       }
       if (m_signal_status.load())
@@ -338,6 +338,7 @@ namespace RedisSubscribe
     {
       mt_logging::logger().log(
           {fmt::format("subscribe (main_redis) {}", e.what()),
+           mt_logging::LogLevel::Error,
            true});
       return 1;
     }
@@ -375,6 +376,7 @@ namespace RedisSubscribe
 
     mt_logging::logger().log({fmt::format("SUB State: {} → {} ({})",
                                           to_str(old), to_str(new_state), reason),
+                              mt_logging::LogLevel::Info,
                               true});
   }
 

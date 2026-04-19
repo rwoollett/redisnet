@@ -45,7 +45,7 @@ int main(int argc, char **argv)
     std::cerr << "Using command line arguments as channels to publish messages." << std::endl;
   }
 
-  mt_logging::logger().log({MTLOG_LOGFILE, true});
+  mt_logging::logger().log({MTLOG_LOGFILE, mt_logging::LogLevel::Error, true});
 
   try
   {
@@ -72,9 +72,6 @@ int main(int argc, char **argv)
       }
     };
 
-    mt_logging::logger().log(
-        {"Application loop stated",
-         true});
     bool m_worker_shall_stop{false}; // false
     while (!m_worker_shall_stop)
     {
@@ -106,6 +103,7 @@ int main(int argc, char **argv)
   {
     mt_logging::logger().log(
         {fmt::format("Application error {}", e.what()),
+         mt_logging::LogLevel::Error,
          true});
     return EXIT_FAILURE;
   }
@@ -113,12 +111,10 @@ int main(int argc, char **argv)
   {
     mt_logging::logger().log(
         {fmt::format("Application error {}", e),
+         mt_logging::LogLevel::Error,
          true});
     return EXIT_FAILURE;
   }
 
-  mt_logging::logger().log(
-      {"Exited normally",
-       true});
   return EXIT_SUCCESS;
 }
