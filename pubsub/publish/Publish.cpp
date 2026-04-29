@@ -147,6 +147,7 @@ namespace RedisPublish
 
   void Publish::enqueue_message(const std::string &channel, const std::string &message)
   {
+    std::lock_guard<std::mutex> lock(m_pub_mutex);
     if (m_signal_status.load())
       return;
     PublishMessage msg;

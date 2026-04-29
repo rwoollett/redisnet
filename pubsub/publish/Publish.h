@@ -115,8 +115,8 @@ namespace RedisPublish
     asio::io_context m_ioc;
     std::shared_ptr<redis::connection> m_conn;
     BlockingSPSCQueue<PublishMessage, QUEUE_LENGTH> msg_queue; // pop blocking Lock-free queue
+    std::mutex m_pub_mutex;
 
-    // std::atomic<bool> m_is_connected{false};
     std::atomic<bool> m_signal_status{false};
     std::atomic<bool> m_shutting_down{false};
     std::atomic<bool> m_conn_alive{false};
