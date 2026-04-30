@@ -29,6 +29,9 @@ public:
     std::unique_lock<std::mutex> cl(m_class_lock);
     if (broadcast_messages.empty())
       return;
+    for (auto m : broadcast_messages) {
+      std::cerr << m << std::endl;
+    }
     awake++;
     m_cond_not_awake.notify_one();
   };
