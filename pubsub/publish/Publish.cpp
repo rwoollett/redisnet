@@ -173,7 +173,6 @@ namespace RedisPublish
 
   asio::awaitable<void> Publish::publish_one(const PublishMessage msg)
   {
-    std::cerr << "publish one " << msg.channel << " - " << msg.message << std::endl;
     auto ex = co_await asio::this_coro::executor;
     auto conn = m_conn;
     if (!conn)
@@ -228,7 +227,7 @@ namespace RedisPublish
       m_conn_alive.store(false);
       co_return;
     }
-    std::cerr << " succes\n";
+
     // Success path
     for (const auto &node : resp.value())
     {
@@ -241,7 +240,6 @@ namespace RedisPublish
     }
 
     MESSAGE_COUNT.fetch_sub(1, std::memory_order_relaxed);
-    std::cerr << "success publish one " << msg.channel << " - " << msg.message << std::endl;
     set_state(ConnectionState::Ready, fmt::format("Publish OK: {} {}", msg.channel, msg.message));
   }
 
